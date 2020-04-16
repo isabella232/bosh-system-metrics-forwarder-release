@@ -5,40 +5,33 @@ resources:
   source:
     uri: git@github.com:cloudfoundry/bosh-system-metrics-server-release
     branch: master
-    private_key: {{metrix-git-key}}
+    private_key: {{cf-loggregator-oauth-bot-key}}
 
 - name: bosh-system-metrics-forwarder-release
   type: git
   source:
     uri: git@github.com:cloudfoundry/bosh-system-metrics-forwarder-release
     branch: master
-    private_key: {{metrix-git-key}}
-
-- name: system-metrics-bosh
-  type: git
-  source:
-    uri: git@github.com:wfernandes/bosh
-    branch: master
-    private_key: {{metrix-git-key}}
+    private_key: {{cf-loggregator-oauth-bot-key}}
 
 - name: denver-locks
   type: git
   source:
     uri: git@github.com:pivotal-cf/denver-locks
     branch: master
-    private_key: {{metrix-git-key}}
+    private_key: {{cf-loggregator-oauth-bot-key}}
 
-- name: deployments-metrics
+- name: deployments-loggregator
   type: git
   source: &deployments_metrics
-    uri: git@github.com:pivotal-cf/deployments-metrics
+    uri: git@github.com:cloudfoundry/deployments-loggregator
     branch: master
-    private_key: {{metrix-git-key}}
+    private_key: {{deployments-loggregator-key}}
 
 # This is here because concourse has a bug in which putting to a git resource
 # creates a new version that can trigger jobs even if the commit has [ci skip]
 # present.
-- name: deployments-metrics-with-changes
+- name: deployments-loggregator-with-changes
   type: git
   source: *deployments_metrics
 
@@ -47,7 +40,7 @@ resources:
   source:
     uri: git@github.com:cloudfoundry/bosh-deployment
     branch: master
-    private_key: {{metrix-git-key}}
+    private_key: {{cf-loggregator-oauth-bot-key}}
 
 - name: bosh-bootloader
   type: git
@@ -69,11 +62,6 @@ resources:
     uri: https://github.com/cloudfoundry/loggregator-release
     branch: v103.4
 
-- name: datadog-nozzle-repo
-  type: git
-  source:
-    uri: https://github.com/DataDog/datadog-firehose-nozzle-release
-
 # ---------- CREATE FINAL RELEASE RESOURCES -----------
 - name: bosh-system-metrics-forwarder-version
   type: semver
@@ -89,7 +77,7 @@ resources:
   source:
     uri: git@github.com:cloudfoundry/bosh-system-metrics-forwarder-release
     branch: master
-    private_key: {{metrix-git-key}}
+    private_key: {{cf-loggregator-oauth-bot-key}}
     ignore_paths:
     - .final_builds
     - releases
@@ -116,7 +104,7 @@ resources:
   source:
     uri: git@github.com:cloudfoundry/bosh-system-metrics-server-release
     branch: master
-    private_key: {{metrix-git-key}}
+    private_key: {{cf-loggregator-oauth-bot-key}}
     ignore_paths:
     - .final_builds
     - releases
@@ -214,7 +202,7 @@ jobs:
   serial_groups:
   - bosh-lite-lock
   plan:
-  - aggregate:
+  - in_parallel:
     - get: bosh-deployment
     - get: bosh-bootloader
     - get: bosh-system-metrics-server-release
@@ -223,8 +211,8 @@ jobs:
     - get: bosh-system-metrics-forwarder-release
       passed: [cleanup-bosh-lite,run-forwarder-unit-tests]
       trigger: true
-    - get: deployments-metrics
-      resource: deployments-metrics-with-changes
+    - get: deployments-loggregator
+      resource: deployments-loggregator-with-changes
       passed: [cleanup-bosh-lite]
     - get: loggregator-release-elect
       trigger: true
@@ -239,12 +227,12 @@ jobs:
       inputs:
       - name: bosh-deployment
       - name: bosh-bootloader
-      - name: deployments-metrics
+      - name: deployments-loggregator
       - name: bosh-system-metrics-server-release
       outputs:
-      - name: updated-deployments-metrics
+      - name: updated-deployments-loggregator
       params:
-        DEPLOY_DIR: deployments-metrics/bosh-lites/bosh-system-metrics
+        DEPLOY_DIR: deployments-loggregator/bosh-lites/bosh-system-metrics
         ENV_NAME: ci
         DIRECTOR_IP: {{bosh-system-metrics-ci-director-external-ip}}
         GCLOUD: /usr/local/gcloud/google-cloud-sdk/bin/gcloud
@@ -267,29 +255,29 @@ jobs:
         source:
           repository: pcfmetrics/indicators-build-and-test
       inputs:
-      - name: updated-deployments-metrics
+      - name: updated-deployments-loggregator
       outputs:
-      - name: committed-deployments-metrics
+      - name: committed-deployments-loggregator
       params:
-        SOURCE: updated-deployments-metrics
+        SOURCE: updated-deployments-loggregator
         PATHS: bosh-lites/bosh-system-metrics
         COMMIT_MESSAGE: "Create system-metrics bosh-lite GCP director"
-        OUTPUT: committed-deployments-metrics
+        OUTPUT: committed-deployments-loggregator
       run:
         path: bash
         args:
         - -c
         - {{commit}}
-  - put: deployments-metrics-with-changes
+  - put: deployments-loggregator-with-changes
     params:
-      repository: committed-deployments-metrics
+      repository: committed-deployments-loggregator
       rebase: true
 
 - name: deploy-loggregator-with-metrics-forwarder
   serial_groups:
   - bosh-lite-lock
   plan:
-  - aggregate:
+  - in_parallel:
     - get: loggregator-repo
       resource: loggregator-release-elect
       trigger: true
@@ -300,8 +288,8 @@ jobs:
     - get: bosh-system-metrics-forwarder-release
       passed:
       - create-bosh-lite-with-metrics-server
-    - get: deployments-metrics
-      resource: deployments-metrics-with-changes
+    - get: deployments-loggregator
+      resource: deployments-loggregator-with-changes
       passed:
       - create-bosh-lite-with-metrics-server
       trigger: true
@@ -317,12 +305,12 @@ jobs:
       inputs:
         - name: bosh-dns-release
         - name: loggregator-repo
-        - name: deployments-metrics
+        - name: deployments-loggregator
         - name: bosh-system-metrics-forwarder-release
       outputs:
-      - name: updated-deployments-metrics
+      - name: updated-deployments-loggregator
       params:
-        DEPLOY_DIR: deployments-metrics/bosh-lites/bosh-system-metrics
+        DEPLOY_DIR: deployments-loggregator/bosh-lites/bosh-system-metrics
         ENV_NAME: ci
         DIRECTOR_IP: {{bosh-system-metrics-ci-director-external-ip}}
         S3_BUCKET: bosh-system-metrics-blobs
@@ -342,22 +330,22 @@ jobs:
         source:
           repository: pcfmetrics/indicators-build-and-test
       inputs:
-      - name: updated-deployments-metrics
+      - name: updated-deployments-loggregator
       outputs:
-      - name: committed-deployments-metrics
+      - name: committed-deployments-loggregator
       params:
-        SOURCE: updated-deployments-metrics
+        SOURCE: updated-deployments-loggregator
         PATHS: bosh-lites/bosh-system-metrics/ci/creds.yml
         COMMIT_MESSAGE: "Update loggregator vars store"
-        OUTPUT: committed-deployments-metrics
+        OUTPUT: committed-deployments-loggregator
       run:
         path: bash
         args:
         - -c
         - {{commit}}
-  - put: deployments-metrics-with-changes
+  - put: deployments-loggregator-with-changes
     params:
-      repository: committed-deployments-metrics
+      repository: committed-deployments-loggregator
       rebase: true
 
 # --------------------------------------------------
@@ -368,7 +356,7 @@ jobs:
   serial_groups:
   - bosh-lite-lock
   plan:
-  - aggregate:
+  - in_parallel:
     - get: bosh-system-metrics-server-release
       trigger: true
       passed:
@@ -377,8 +365,8 @@ jobs:
       trigger: true
       passed:
       - deploy-loggregator-with-metrics-forwarder
-    - get: deployments-metrics
-      resource: deployments-metrics-with-changes
+    - get: deployments-loggregator
+      resource: deployments-loggregator-with-changes
       trigger: true
       passed:
       - deploy-loggregator-with-metrics-forwarder
@@ -390,7 +378,7 @@ jobs:
         source:
           repository: pcfmetrics/indicators-build-and-test
       inputs:
-      - name: deployments-metrics
+      - name: deployments-loggregator
       - name: bosh-system-metrics-forwarder-release
       params:
         DIRECTOR_IP: {{bosh-system-metrics-ci-director-external-ip}}
@@ -403,7 +391,7 @@ jobs:
           set -eux
           echo "Running smoke tests..."
 
-          deployment_dir=$PWD/deployments-metrics/bosh-lites/bosh-system-metrics/ci
+          deployment_dir=$PWD/deployments-loggregator/bosh-lites/bosh-system-metrics/ci
           pushd ${deployment_dir}
             export BOSH_CLIENT=admin
             export BOSH_CLIENT_SECRET=$(bosh interpolate creds.yml --path /admin_password)
