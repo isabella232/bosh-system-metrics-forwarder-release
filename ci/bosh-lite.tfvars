@@ -1,5 +1,0 @@
-dns_project_id = "cff-loggregator"
-dns_zone_name = "bosh-lite"
-env_name = "bosh-lite"
-project_id = "cff-loggregator"
-system_domain_suffix = "loggr.cf-app.com"
