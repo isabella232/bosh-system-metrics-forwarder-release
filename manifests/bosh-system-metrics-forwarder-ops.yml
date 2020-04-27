@@ -10,26 +10,13 @@
     name: bosh-system-metrics-forwarder
     azs:
     - z1
-    instances: 2
+    instances: 1
     persistent_disk_type: default
     vm_type: default
     stemcell: default
     networks:
     - name: default
     jobs:
-    - name: loggregator_agent
-      release: loggregator-agent
-      consumes:
-        doppler: {from: doppler, deployment: loggregator}
-      properties:
-        disable_udp: false
-        bosh_dns: true
-        loggregator:
-          tls:
-            ca_cert: "((loggregator_agent.ca))"
-            agent:
-              cert: "((loggregator_agent.certificate))"
-              key: "((loggregator_agent.private_key))"
     - name: bosh-system-metrics-forwarder
       release: bosh-system-metrics-forwarder
       properties:
@@ -47,9 +34,9 @@
           identity: "system_metrics_client"
           password: "((system_metrics_uaa_client_secret))"
         loggregator:
-          ca_cert: "((loggregator_agent.ca))"
-          cert: "((loggregator_agent.certificate))"
-          key: "((loggregator_agent.private_key))"
+          ca_cert: "((loggregator_tls_agent.ca))"
+          cert: "((loggregator_tls_agent.certificate))"
+          key: "((loggregator_tls_agent.private_key))"
     update:
       serial: true
       max_in_flight: 1
