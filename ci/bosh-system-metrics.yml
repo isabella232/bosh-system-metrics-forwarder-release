@@ -1,20 +1,5 @@
 ---
-resource_types:
-- name: terraform
-  type: docker-image
-  source:
-    repository: ljfranklin/terraform-resource
-
 resources:
-# - name: terraform
-#   type: terraform
-#   source:
-#     backend_type: gcs
-#     backend_config:
-#       bucket: ((bosh_lite_storage_bucket))
-#       prefix: bosh-lite/
-#       credentials: ((gcp_credentials_json))
-
 - name: bosh-system-metrics-server-release
   type: git
   source:
@@ -325,18 +310,18 @@ jobs:
   plan:
   - in_parallel:
     - get: bosh-system-metrics-server-release
-      trigger: true
-      passed:
-      - deploy-loggregator-with-metrics-forwarder
+      # trigger: true
+      # passed:
+      # - deploy-loggregator-with-metrics-forwarder
     - get: bosh-system-metrics-forwarder-release
-      trigger: true
-      passed:
-      - deploy-loggregator-with-metrics-forwarder
+      # trigger: true
+      # passed:
+      # - deploy-loggregator-with-metrics-forwarder
     - get: deployments-loggregator
       resource: deployments-loggregator-with-changes
-      trigger: true
-      passed:
-      - deploy-loggregator-with-metrics-forwarder
+      # trigger: true
+      # passed:
+      # - deploy-loggregator-with-metrics-forwarder
   - task: run-smokes
     config:
       platform: linux
@@ -357,22 +342,22 @@ jobs:
           #!/bin/bash
           set -eux
           echo "Running smoke tests..."
-
-          deployment_dir=$PWD/deployments-loggregator/bosh-lites/bosh-system-metrics/acceptance
+          internal_ip=10.0.0.6
+          deployment_dir=$PWD/deployments-loggregator/gcp/kiwi
           pushd ${deployment_dir}
             export BOSH_CLIENT=admin
-            export BOSH_CLIENT_SECRET=$(bosh interpolate creds.yml --path /admin_password)
-            bosh interpolate creds.yml --path /director_ssl/ca > /tmp/bosh-ca.crt
+            export BOSH_CLIENT_SECRET=$(bosh interpolate vars/director-vars-store.yml --path /admin_password)
+            bosh interpolate vars/director-vars-store.yml --path /director_ssl/ca > /tmp/bosh-ca.crt
             export BOSH_CA_CERT=/tmp/bosh-ca.crt
-            export BOSH_ENVIRONMENT="https://$DIRECTOR_IP:25555"
-            bosh interpolate creds.yml --path /jumpbox_ssh/private_key > /tmp/jumpbox.key
+            export BOSH_ENVIRONMENT="https://$internal_ip:25555"
+            bosh interpolate vars/director-vars-store.yml --path /jumpbox_ssh/private_key > /tmp/jumpbox.key
             chmod 600 /tmp/jumpbox.key
           popd
 
           # Setup ssh tunnel via director
           mkdir $HOME/.ssh || true
-          ssh-keyscan $DIRECTOR_IP >> $HOME/.ssh/known_hosts
-          ssh jumpbox@$DIRECTOR_IP -i /tmp/jumpbox.key -L 8081:$(bosh -d loggregator instances | grep log-api | awk '{print $4}'):8081 -N &
+          ssh-keyscan $internal_ip >> $HOME/.ssh/known_hosts
+          ssh jumpbox@$internal_ip -i /tmp/jumpbox.key -L 8081:10.0.1.18:8081 -N &
 
           smoke_tests_dir=bosh-system-metrics-forwarder-release/src/github.com/cloudfoundry/bosh-system-metrics-forwarder/cmd/smoke-tests
           pushd ${smoke_tests_dir}
