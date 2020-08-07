@@ -160,6 +160,14 @@ resources:
 # -----------------------------------------------
 # JOBS
 # -----------------------------------------------
+task-config: &linux-task-config
+  platform: linux
+  image_resource:
+    type: docker-image
+    source:
+      repository: pcfmetrics/indicators-build-and-test
+      tag: latest
+
 jobs:
 # -----------------------------------------------
 # UNIT TESTS
@@ -170,12 +178,7 @@ jobs:
     trigger: true
   - task: unit-tests
     config:
-      platform: linux
-      image_resource:
-        type: docker-image
-        source:
-          repository: pcfmetrics/indicators-build-and-test
-          tag: latest
+      << : *linux-task-config
       inputs:
       - name: bosh-system-metrics-server-release
       run:
@@ -196,13 +199,7 @@ jobs:
     trigger: true
   - task: unit-tests
     config:
-      platform: linux
-      image_resource:
-        type: docker-image
-        source:
-          repository: pcfmetrics/indicators-build-and-test
-          tag: latest
-
+      << : *linux-task-config
       inputs:
       - name: bosh-system-metrics-forwarder-release
       run:
@@ -274,11 +271,7 @@ jobs:
           - ((create-acceptance-bosh-lite-with-metrics-server))
   - task: commit
     config:
-      platform: linux
-      image_resource:
-        type: docker-image
-        source:
-          repository: pcfmetrics/indicators-build-and-test
+      << : *linux-task-config
       inputs:
       - name: updated-deployments-loggregator
       outputs:
@@ -299,11 +292,7 @@ jobs:
       rebase: true
   - task: deploy-loggregator-with-metrics-forwarder
     config:
-      platform: linux
-      image_resource:
-        type: docker-image
-        source:
-          repository: pcfmetrics/indicators-build-and-test
+      << : *linux-task-config
       inputs:
       - name: bosh-system-metrics-forwarder-release
       - name: deployments-loggregator
@@ -348,11 +337,7 @@ jobs:
       - deploy-loggregator-with-metrics-forwarder
   - task: run-smokes
     config:
-      platform: linux
-      image_resource:
-        type: docker-image
-        source:
-          repository: pcfmetrics/indicators-build-and-test
+      << : *linux-task-config
       inputs:
       - name: deployments-loggregator
       - name: bosh-system-metrics-forwarder-release
@@ -407,11 +392,7 @@ jobs:
       - run-smoke-tests
   - task: create-final-release
     config:
-      platform: linux
-      image_resource:
-        type: docker-image
-        source:
-          repository: pcfmetrics/indicators-build-and-test
+      << : *linux-task-config
       inputs:
       - name: version
       - name: release
@@ -465,11 +446,7 @@ jobs:
       - run-smoke-tests
   - task: create-final-release
     config:
-      platform: linux
-      image_resource:
-        type: docker-image
-        source:
-          repository: pcfmetrics/indicators-build-and-test
+      << : *linux-task-config
       inputs:
       - name: version
       - name: release
@@ -588,11 +565,7 @@ jobs:
             rsync -ac deployments-loggregator/ updated-deployments-loggregator
   - task: commit-env-state
     config:
-      platform: linux
-      image_resource:
-        type: docker-image
-        source:
-          repository: pcfmetrics/indicators-build-and-test
+      << : *linux-task-config
       inputs:
       - name: updated-deployments-loggregator
       outputs:
