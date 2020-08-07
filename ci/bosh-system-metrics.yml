@@ -234,7 +234,9 @@ jobs:
       trigger: true
       passed:
       - run-forwarder-unit-tests
-    - get: deployments-loggregator
+    - get: deployments-loggregator-with-changes
+      passed:
+      - cleanup-bosh-lite
     - get: bosh-deployment
     - get: bosh-bootloader
     - get: bosh-dns-release
@@ -252,11 +254,11 @@ jobs:
       - name: bosh-system-metrics-forwarder-release
       - name: bosh-deployment
       - name: bosh-bootloader
-      - name: deployments-loggregator
+      - name: deployments-loggregator-with-changes
       outputs:
       - name: updated-deployments-loggregator
       params:
-        DEPLOY_DIR: deployments-loggregator/bosh-lites/bosh-system-metrics
+        DEPLOY_DIR: deployments-loggregator-with-changes/bosh-lites/bosh-system-metrics
         ENV_NAME: acceptance
         SUBNET_PREFIX: 10.0.0
         SUBNETWORK: bosh-lite
@@ -334,18 +336,16 @@ jobs:
   plan:
   - in_parallel:
     - get: bosh-system-metrics-server-release
-      # trigger: true
-      # passed:
-      # - deploy-loggregator-with-metrics-forwarder
+      passed:
+      - run-server-unit-tests
     - get: bosh-system-metrics-forwarder-release
-      # trigger: true
-      # passed:
-      # - deploy-loggregator-with-metrics-forwarder
+      passed:
+      - run-forwarder-unit-tests
     - get: deployments-loggregator
       resource: deployments-loggregator-with-changes
-      # trigger: true
-      # passed:
-      # - deploy-loggregator-with-metrics-forwarder
+      trigger: true
+      passed:
+      - deploy-loggregator-with-metrics-forwarder
   - task: run-smokes
     config:
       platform: linux
@@ -509,6 +509,11 @@ jobs:
     params:
       file: github-release/*.tgz
       acl: public-read
+
+
+# --------------------------------------------------
+# CLEANUP / ENV MAINTENANCE
+# -------------------------------------------------
 
 - name: cleanup-bosh-lite
   serial: true
