@@ -1,4 +1,28 @@
 ---
+groups:
+- name: all
+  jobs:
+  - run-server-unit-tests
+  - run-forwarder-unit-tests
+  - deploy-loggregator-with-metrics-forwarder
+  - run-smoke-tests
+  - cleanup-bosh-lite
+  - create-server-final-release
+  - create-forwarder-final-release
+- name: unit-tests
+  jobs:
+  - run-server-unit-tests
+  - run-forwarder-unit-tests
+- name: smoke-tests
+  jobs:
+  - deploy-loggregator-with-metrics-forwarder
+  - run-smoke-tests
+  - cleanup-bosh-lite
+- name: release
+  jobs:
+  - create-server-final-release
+  - create-forwarder-final-release
+
 resources:
 - name: bosh-system-metrics-server-release
   type: git
